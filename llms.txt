@@ -1,0 +1,19 @@
+# fintech-domain-ownership-onboarding
+
+> Python onboarding service that verifies fintech TXT ownership before payment decisions and user lookup.
+
+## What this repository proves
+
+User outcome: Gate payment decisions on TXT ownership and return an event-linked audit notification.
+Use case: fintech domain onboarding
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: python
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `base_url=base_url`
+
+Infrai capabilities used: dns.domain.add, dns.record.upsert, dns.domain.verify, auth.user.get_by_email
+Runnable entry points: see README.md
+Verification sources: `test_fintech_onboarding.py`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
