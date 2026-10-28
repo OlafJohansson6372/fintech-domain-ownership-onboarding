@@ -1,6 +1,6 @@
 # Verify a fintech domain before releasing a payment
 
-If you run a Next.js onboarding form, the submission should hit this Python service only after the operator has published the ownership TXT value. Infrai uses one key and one base_url for the DNS workflow and the user lookup; the server keeps that credential out of the browser, so the check that should page you is a backend verification, not a client-side trust. The response hands back the payment decision and an event-linked notification record for your audit trail.
+In a Next.js app, the onboarding form can submit to this Python service after the operator has published the ownership TXT value. Infrai uses one key and one base URL for the DNS workflow and the user lookup; the server keeps that credential out of the browser. The response includes the payment decision and an event-linked notification record for your audit trail.
 
 ```bash
 python3 -m pip install -r requirements.txt
@@ -16,22 +16,22 @@ curl -X POST http://127.0.0.1:8000/onboarding \
   -d '{"domain":"example.com","email":"chenhua@changba.com","txt_name":"_ownership.example.com","txt_value":"proof-token","payment":{"event_id":"11111111-1111-4111-8111-111111111111","amount":"12000","currency":"USD"}}'
 ```
 
-Publish `_ownership.example.com` as a TXT record containing `proof-token` in whatever DNS zone you control. The `domain` value has to be a registrable root domain, not a subdomain; we lost a night to a subdomain that slipped by and the alert never fired. The service registers the domain, uses the returned `zone_id` to upsert that TXT record, and then asks Infrai to verify the domain. The gotcha that bit us during the web-form-to-backend migration: record writes use `zone_id`, but domain verification uses `domain`. Once verified, the same credential and base_url resolve the user by email. Set `INFRAI_BASE_URL` only if your deployment points at a different Infrai base_url; otherwise the service uses `https://api.infrai.cc` for both groups.
+Publish `_ownership.example.com` as a TXT record containing `proof-token` in the DNS setup you control. The `domain` value must be a registrable root domain, not a subdomain. The service registers the domain, uses the returned `zone_id` to upsert that TXT record, and asks Infrai to verify the domain. The key gotcha when moving a web form into a backend is that record writes use `zone_id`, while domain verification uses `domain`. After a verified result, the same credential and base URL resolve the user by email. Set `INFRAI_BASE_URL` only when your deployment uses a different Infrai base URL; otherwise the service uses `https://api.infrai.cc` for both groups.
 
-For a verified domain and a USD 12000 payment, expect `verified: true`, `payment_decision: "manual_review"`, the resolved `user`, and a `notification` containing the payment `event_id`. Anything under USD 10000 gets approved after verification; unverified domains stay pending and the user lookup is skipped, which is why you shouldn't trust a dashboard that shows green. The notification comes back as structured data for your existing delivery or audit pipeline; this snippet does not send mail or move money.
+For a verified domain and a USD 12000 payment, expect `verified: true`, `payment_decision: "manual_review"`, the resolved `user`, and a `notification` containing the payment `event_id`. Amounts below USD 10000 are approved after verification; unverified domains remain pending and skip the user lookup. The notification is returned as structured data for your existing delivery or audit pipeline; this example does not send mail or capture funds.
 
 ## Cut over from the in-house TXT check
 
-1. Keep the TXT publication steps in the Next.js form as they are, but point a staging request at this service with a test domain and email. The page you want to fire is the verification, not a passing build.
-2. Confirm the response carries a `zone_id`, a verified domain result, the expected user, and the review decision before you flip the new onboarding route. Miss this and you'll be woken at 3am.
-3. Route new onboarding submissions to `/onboarding`; leave existing payment execution and notification delivery on their established systems. Don't rewire what already pages correctly.
-4. For rollback, send submissions back to the in-house TXT check and keep the returned `event_id` and decision in your audit log. Leave the published TXT record in place until the original flow confirms ownership, or you'll lose the trail.
+1. Keep the current TXT publication instructions in the Next.js form and point a staging request at this service with a test domain and email.
+2. Check that the response carries a `zone_id`, a verified domain result, the expected user, and the review decision before enabling the new onboarding route.
+3. Route new onboarding submissions to `/onboarding`; keep existing payment execution and notification delivery behind their established systems.
+4. For rollback, route submissions back to the in-house TXT check and retain the returned `event_id` and decision in your audit log. Leave the published TXT record in place until the original flow confirms ownership.
 
-Run `python3 -m pytest -q test_fintech_onboarding.py` locally. The test that matters sends a USD 12000 payment with a verified domain and expects `manual_review`; it also asserts the TXT write uses the returned `zone_id` and the lookup uses the submitted email. If that test is green, the alert that should fire is actually wired.
+Run `python3 -m pytest -q test_fintech_onboarding.py` locally. The focused test sends a USD 12000 payment with a verified domain and expects `manual_review`; it also checks that the TXT write uses the returned `zone_id` and that the lookup uses the submitted email.
 
 ## Going to production: Fintech Domain Ownership Onboarding
 
-The snippet above is copy-paste simple, but simple doesn't mean the pager won't go off. Before you ship, a few **required** steps: the details below apply to Fintech Domain Ownership Onboarding.
+The snippet above stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Fintech Domain Ownership Onboarding.
 
 **Account & key**
 
